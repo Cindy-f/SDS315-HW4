@@ -1,0 +1,228 @@
+---
+author: "Zhou Fan"
+date: "2024-02-15"
+output: html_document
+---
+
+### SDS315-HW4
+### Name: Zhou Fan
+### UT EID: zf2949
+### Github link: https://github.com/Cindy-f/SDS315-HW4.git
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+gas <- read.csv('gasprices.csv')
+sclass <- read.csv('sclass.csv')
+nbc <- read.csv('nbc_pilotsurvey.csv')
+ebay <- read.csv('ebay.csv')
+library(tidyverse)
+library(mosaic)
+
+```
+
+### Problem1: Gas Prices
+
+#### Theory A:  
+(1) Claim: Gas station charge more if they lack direct competition in sight.
+```{r, echo=FALSE}
+# Competitors: Y/N (categorical)
+options(scipen = 999)
+boot_price_competition = do(10000) * diffmean(Price ~ Competitors, data = resample(gas))
+confint(boot_price_competition, level = 0.95)
+
+```
+(2) Evidence: The difference in price between gas stations with and without direct competition is somewhere between -0.055 and 0.008, with 95% confidence. Since this interval contains zero, it is not statistically significant. Therefore, it can not be concluded that gas station charge more if they lack direct competition in sight. 
+(3) Conclusion: This theory is false because it is unsupported by our data. 
+
+
+#### Theory B:
+(1) Claim: The richer the area, the higher the gas prices.
+```{r, echo=FALSE}
+# Income: integers (numerical)
+options(scipen = 999)
+boot_price_income = do(10000) * lm(Price ~ Income, data = resample(gas))
+confint(boot_price_income, level = 0.95)
+
+```
+(2) Evidence: The coefficient of the linear model between the gas prices and the area's median household income is between 0.00000066 and 0.00000178, with 95% confidence. Since this interval does not include zero and is always positive, we can conclude that: generally the richer the area, the higher the gas prices. 
+(3) Conclusion: This theory is true because it is supported by our data. 
+
+
+#### Theory C:
+(1) Claim: Gas stations at stoplights charge more.
+```{r, echo=FALSE}
+# Stoplight: Y/N (categorical)
+options(scipen = 999)
+boot_price_stoplights = do(10000) * diffmean(Price ~ Stoplight, data = resample(gas))
+confint(boot_price_stoplights, level = 0.95)
+```
+(2) Evidence: The difference in price between gas stations with and without stoplights is somewhere between -0.038 and 0.031, with 95% confidence, Since this interval includes zero, it is not statistically significant. Therefore, it can not be concluded that gas stations at stoplights charge more. 
+(3) Conclusion: This theory is false because it is unsupported by our data. 
+
+
+#### Theory D:
+(1) Claim: Gas stations with direct highway access charge more. 
+```{r, echo=FALSE}
+# Highway: Y/N (categorical)
+options(scipen = 999)
+boot_price_highway = do(10000) * diffmean(Price ~ Highway, data = resample(gas))
+confint(boot_price_highway, level = 0.95)
+
+```
+(2) Evidence: The difference in price between gas stations with and without direct highway access is somewhere between 0.009 and 0.081, with 95% confidence. Since this interval does not include zero and is always positive, it is statistically significant. Therefore, we can conclude that: generally gas stations with direct highway access charge more. 
+(3) Conclusion: This theory is true because it is supported by our data. 
+
+
+#### Theory E:
+(1) Claim: Shell charges more than all other non-Shell brands.
+```{r, echo=FALSE}
+# Brand: 'Shell', 'Other', 'Chevron-Texaco', 'ExxonMobil'. (categorical)
+options(scipen = 999)
+
+# create a new column called 'shellOrNot': Y/N (categorical)
+gas_augmented = gas %>%
+  mutate(shellOrNot = ifelse(Brand == 'Shell', yes = 'Y', no = 'N'))
+
+boot_price_shell = do(10000) * diffmean(Price ~ shellOrNot, data = resample(gas_augmented))
+confint(boot_price_shell, level = 0.95)
+
+```
+(2) Evidence: The difference in price between gas stations of 'Shell' brand and other brands is somewhere between -0.010 and 0.064, with 95% confidence. Since this interval contains zero, it is not statistically significant. Therefore, we can not conclude that Shell charges more than all other non-Shell brands. 
+(3) Conclusion: This theory is false because it is unsupported by our data. 
+
+
+### Problem2: S-Class Vehicles
+
+#### Part A: Filter the data set down to include only those cars where year == 2011 and trim == "63 AMG". Based on these 116 cars, compute a 95% bootstrap confidence interval for the average mileage of 2011 S-Class 63 AMGs that were hitting the used-car market when this data was collected.
+```{r, echo=FALSE}
+# mileage: integer (numerical)
+
+sclass <- read.csv('sclass.csv')
+
+# sclass_filteredA: 116 cars
+sclass_filteredA = sclass %>%
+  filter(year==2011 & trim=='63 AMG')
+
+boot_car_filteredA = do(10000) * mean(~mileage, data = resample(sclass_filteredA))
+confint(boot_car_filteredA, level = 0.95)
+
+```
+The 95% bootstrap confidence interval for the average mileage of 2011 S-Class 63 AMGs that were hitting the used-car market when this data was collected is: (26222.43, 31706.03).
+
+
+
+#### Part B: Filter the data set down to include only those cars where year == 2014 and trim == "550". Based on this sample of 2889 cars, compute a 95% bootstrap confidence interval for the proportion of all 2014 S-Class 550s that were painted black. Hint: you might find this easiest if you use mutate to first define a new variable, isBlack, that is either TRUE or FALSE depending on whether the car is black.
+```{r, echo=FALSE}
+
+gas_augmented = gas %>%
+  mutate(shellOrNot = ifelse(Brand == 'Shell', yes = 'Y', no = 'N'))
+
+# sclass_filterB: 2889 cars
+sclass_filteredB = sclass %>%
+  filter(year==2014 & trim=='550') %>%
+  mutate(isBlack = ifelse(color == 'Black', yes = TRUE, no = FALSE))
+
+# sum(sclass_filteredB$isBlack): 1256 black cars out of 2889 cars filtered. 
+
+boot_car_filteredB = do(10000) * prop(~isBlack, data = resample(sclass_filteredB))
+
+confint(boot_car_filteredB, level = 0.95)
+
+
+
+```
+Therefore, a 95% bootstrap confidence interval for the proportion of all 2014 S-Class 550s that were painted black is: (0.416, 0.453). (rounded to 3 decimal places)
+
+### Problem3: NBC Reviews
+
+#### Part A: 
+
+(1) Question: Consider the shows “Living with Ed” and “My Name is Earl” Who makes people happier: Ed or Earl? Construct a filtered data set containing only viewer responses where Show == "Living with Ed" or Show == "My Name is Earl". Then construct a 95% confidence interval for the difference in mean viewer response to the Q1_Happy question for these two shows. Is there evidence that one show consistently produces a higher mean Q1_Happy response among viewers?
+
+(2) Approach: I first filtered the dataset by using filter() function, then bootstrap the difference of means using the diffmean() function. Then I constructed a 95% confidence interval for the mean difference of happy reviews.
+```{r, echo=FALSE}
+nbc_EdEarl = nbc %>%
+  filter(Show == 'Living with Ed' | Show == 'My Name is Earl')
+  
+boot_happy_review = do(10000) * diffmean(Q1_Happy ~ Show, data = resample(nbc_EdEarl))
+confint(boot_happy_review, level = 0.95)  
+
+```
+(3) Results: The 95% confidence interval for the difference in mean viewer response to the Q1_Happy question for these two shows are: (-0.393, 0.109). 
+
+(4) Conclusion: Since the confidence interval includes zero, it suggests that the mean difference is not statistically significant. Therefore, there is not evidence to support that one show consistently produces a higher mean Q1_Happy response among viewers.
+
+#### Part B: 
+(1) Question: Consider the shows “The Biggest Loser” and “The Apprentice: Los Angeles.” Which reality/contest show made people feel more annoyed? Construct a filtered data set containing only viewer responses where Show == "The Biggest Loser" or Show == "The Apprentice: Los Angeles". Then construct a 95% confidence interval for the difference in mean viewer response to the Q1_Annoyed question for these two shows. Is there evidence that one show consistently produces a higher mean Q1_Annoyed response among viewers?
+
+(2) Approach: I first filtered the dataset by using filter() function, then bootstrap the difference of means using the diffmean() function. Then I constructed a 95% confidence interval for the mean difference of happy reviews.
+```{r, echo=FALSE}
+
+nbc_annoyed = nbc %>%
+  filter(Show == 'The Biggest Loser' | Show == 'The Apprentice: Los Angeles')
+
+boot_annoyed_review = do(10000) * diffmean(Q1_Annoyed ~ Show, data = resample(nbc_annoyed))
+confint(boot_annoyed_review, level = 0.95)
+  
+```
+
+(3) Results: The 95% confidence interval for the difference in mean viewer response to the Q1_Annoyed question for these two shows is: (-0.521, -0.022). 
+
+(4) Conclusion: Since the confidence interval does not include zero and is always negative, it suggests that the mean difference is statistically significant. Therefore, there is evidence that one show consistently produces a higher mean Q1_Annoyed response among viewers.
+
+#### Part C: 
+(1) Question: Consider the show “Dancing with the Stars.” This show has a straightforward premise: it is a dancing competition between couples, with each couple consisting of a celebrity paired with a professional dancer. Per Wikipedia: “Each couple performs predetermined dances and competes against the others for judges’ points and audience votes.”
+
+(2) Approach: I first filtered the dataset by using filter() function, then I created a new column 'isConfused' based on viewers' Q2_Confusing score using mutate() function. After that, I bootstrap the proportion of confused viewers by using prop() function and finally construct the 95% confidence interval. 
+
+```{r, echo=FALSE}
+
+nbc_dancing = nbc %>%
+  filter(Show == 'Dancing with the Stars') %>%
+  mutate(isConfused = ifelse(Q2_Confusing >= 4, yes = TRUE, no = FALSE))
+
+boot_confused_review = do(10000) * prop(~isConfused, data = resample(nbc_dancing))
+confint(boot_confused_review, level = 0.95)
+
+# sum(nbc_dancing$isConfused): 14
+```
+(3) Results: The 95% confidence interval for the proportion of "Dancing with the Stars" viewers who feel this show is confusing is: (0.039, 0.122). 
+
+(4) Conclusion: We are 95% confident that the interval (0.039, 0.122) captures the proportion of "Dancing with the Stars" viewers who think this show is confusing. 
+
+
+### Problem4: EBay
+
+(1) Question: Compute the difference in revenue ratio between the treatment and control DMAs and provide a 95% confidence interval for the difference. Use these results to assess the evidence for whether the revenue ratio is the same in the treatment and control groups, or whether instead the data favors the idea that paid search advertising on Google creates extra revenue for EBay.
+
+(2) Approach: First I split the data entries into a control group and a treatment group based on the value of 'adwords_pause' by using filter() function. Then I compare the arithmetic mean of revenue ratios of both groups. After that, I bootstrap the mean difference of revenue ratios of both groups using diffmean() function. Finally I construct a 95% confidence interval for our revenue ratio difference.
+
+```{r, echo=FALSE}
+
+# filter control and treatment:
+ebay_control <- ebay %>%
+  filter(adwords_pause == '0')
+
+ebay_treatment <- ebay %>%
+  filter(adwords_pause == '1')
+
+# compare the before-and-after revenue ratio of both groups: control groop (do not pause ads) have a higher mean revenue ratio than the treatment group (pause ads).
+mean(ebay_control$rev_ratio) # 0.949
+mean(ebay_treatment$rev_ratio) # 0.897
+
+
+```
+
+```{r, echo=FALSE}
+
+boot_ratio_difference = do(10000) * diffmean(rev_ratio ~ adwords_pause, data = resample(ebay))
+confint(boot_ratio_difference, level = 0.95)
+
+```
+
+(3) Results: The 95% confidence interval for difference of mean revenue ratios of the control group and the treatment group is: (-0.091, -0.013). 
+
+(4) Conclusion: Since our confidence interval does not contain zero and is all negative, it suggests that the revenue ratio is not the same in the treatment and control groups. In additio, the means of both groups suggest that the control group (with ads) has a higher mean revenue ratio than the treatment group (with ads paused). Therefore, it favors that paid search advertising on Google creates extra revenue for EBay. 
+
+
+
